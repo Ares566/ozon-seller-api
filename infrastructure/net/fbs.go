@@ -10,27 +10,38 @@ import (
 )
 
 type OzonClient struct {
-	ClientID  string
-	Key string
+	ClientID string
+	Key      string
 	Client   *http.Client
 }
 
 const OzoneHost = "https://api-seller.ozon.ru"
 
 func NewFBSClient(clientID string, key string) (*OzonClient, error) {
-	if clientID == "" || key == ""{
+	if clientID == "" || key == "" {
 		argErros := errors.New("нужно указать верные clientID и key")
 		return nil, argErros
 	}
 
 	return &OzonClient{
 		ClientID: clientID,
-		Key: key,
-		Client: &http.Client{},
+		Key:      key,
+		Client:   &http.Client{},
 	}, nil
 
 }
 
+func (c *OzonClient) SendBalance(sbr *entity.StockBalanceRequest) (entity.StockBalanceResponse, error) {
+	// https://api-seller.ozon.ru/v2/products/stocks
+
+	req, err := c.newPost("/v2/products/stocks", sbr)
+
+	var result entity.StockBalanceResponse
+	err = c.doRequest(req, &result)
+
+	return result, err
+
+}
 func (c *OzonClient) GetUnfulfilledList() ([]entity.Posting, error) {
 	//https://api-seller.ozon.ru/v3/posting/fbs/unfulfilled/list
 
@@ -43,14 +54,10 @@ func (c *OzonClient) GetUnfulfilledList() ([]entity.Posting, error) {
 
 	var list []entity.Posting
 
-	type lUFFLRequest struct {
-		Limit  int `json:"limit"`
-		Offset int `json:"offset"`
-	}
 	for page := startPage; len(list) != totalElements; page++ {
 		req, err := c.newPost("/v3/posting/fbs/unfulfilled/list", entity.UFFLRequest{
-			Limit: pageSize,
-			Offset: (page-1)*pageSize,
+			Limit:  pageSize,
+			Offset: (page - 1) * pageSize,
 		})
 		if err != nil {
 			return list, err
@@ -90,9 +97,7 @@ func (c *OzonClient) newPost(path string, v interface{}) (*http.Request, error) 
 
 func (c *OzonClient) doRequest(req *http.Request, v interface{}) error {
 
-
 	resp, err := c.Client.Do(req)
-
 
 	if err != nil {
 		return err

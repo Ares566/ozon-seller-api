@@ -6,15 +6,14 @@ import (
 	"ozon-seller-api/infrastructure/database"
 	"ozon-seller-api/infrastructure/logger"
 	"ozon-seller-api/infrastructure/net"
+	"ozon-seller-api/infrastructure/queue"
 	"ozon-seller-api/internal/config"
-
 
 	"github.com/joho/godotenv"
 )
 
-
 const (
-	FBSApp      = iota
+	FBSApp = iota
 )
 
 // New is
@@ -28,6 +27,7 @@ func New() map[int]interface{} {
 	var (
 		appConfig = config.NewAppConfig()
 		dbConfig  = config.NewDatabaseConfig()
+		rmqConfig = config.NewRabbitMQConfig()
 	)
 	// connect to database
 	db, err := database.NewDatabase(dbConfig)
@@ -39,14 +39,19 @@ func New() map[int]interface{} {
 	if err != nil {
 		logger.Error(err)
 	}
+
+	rmq, err := queue.NewRMQConsumer(rmqConfig)
+	if err != nil {
+		logger.Error(err)
+	}
 	// dependency injection
 	// TODO может uber-go/dig ?
 	var (
 		fbsRepository = api.NewFBSRepository(client, db.Conn)
-		fbsApp          = application.NewFBSApplication(fbsRepository)
+		fbsApp        = application.NewFBSApplication(fbsRepository, rmq)
 	)
 
 	return map[int]interface{}{
-		FBSApp:    fbsApp,
+		FBSApp: fbsApp,
 	}
 }

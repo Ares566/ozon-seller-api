@@ -3,13 +3,14 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"ozon-seller-api/domain/entity"
 	"ozon-seller-api/infrastructure/logger"
 	"ozon-seller-api/infrastructure/net"
 )
 
 type FBSRepo struct {
 	client *net.OzonClient
-	db    *sql.DB
+	db     *sql.DB
 }
 
 func NewFBSRepository(client *net.OzonClient, dbc *sql.DB) *FBSRepo {
@@ -18,6 +19,30 @@ func NewFBSRepository(client *net.OzonClient, dbc *sql.DB) *FBSRepo {
 	}
 
 	return &FBSRepo{client, dbc}
+}
+
+func (c *FBSRepo) SetStockBalances(sbl []entity.StockBalanceOffer) {
+
+	var chunkSize = 99
+	var chunks [][]entity.StockBalanceOffer
+
+	for i := 0; i < len(sbl); i += chunkSize {
+		end := i + chunkSize
+
+		if end > len(sbl) {
+			end = len(sbl)
+		}
+
+		chunks = append(chunks, sbl[i:end])
+	}
+
+	for _, offers := range chunks {
+		request := entity.StockBalanceRequest{
+			Stocks: offers,
+		}
+
+		c.client.SendBalance(&request)
+	}
 }
 
 func (c *FBSRepo) GetUnfulfilledList() {
@@ -48,7 +73,6 @@ func (c *FBSRepo) GetUnfulfilledList() {
 
 	}
 }
-
 
 func NewNullString(s string) sql.NullString {
 	if len(s) == 0 {
